@@ -1,33 +1,33 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Wallet } from 'lucide-react';
 
-export function InvestmentNode({ data, selected }: NodeProps) {
-  const borderClass = selected ? 'border-green-500' : 'border-zinc-800 hover:border-green-500/50';
-  const handleOpacity = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
-  const handleStyle = { width: 10, height: 10, background: '#22c55e', border: '2px solid #09090b', zIndex: 50 };
+const formatBRL = (value: any) => {
+    const num = parseFloat(value || 0);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+};
 
-  const formattedValue = parseFloat(data.value?.toString() || '0')
-    .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function InvestmentNode({ data, selected }: NodeProps) {
+  // REMOÇÃO DO GLOW
+  const containerStyle = selected 
+    ? "ring-1 ring-white border-green-500" 
+    : "border-green-600 hover:border-green-400";
 
   return (
-    <div className={`bg-zinc-950 border-2 rounded-xl min-w-[160px] transition-all relative group ${borderClass}`}>
-      <div className="p-3 flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${selected ? 'bg-green-500 text-black' : 'bg-zinc-900 text-green-500 border border-zinc-800'}`}>
-            <Wallet size={18} />
-        </div>
-        <div className="flex flex-col">
-            <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Investimento</span>
-            <div className="flex items-center gap-1 text-white font-mono text-xl font-bold leading-none mt-0.5">
-                <span className="text-xs text-zinc-500">R$</span>
-                <span>{formattedValue}</span>
-            </div>
-        </div>
+    <div className={`relative min-w-[160px] bg-black border-2 rounded-full px-4 py-3 flex items-center gap-3 transition-all group ${containerStyle}`}>
+      <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
+        <Wallet size={20} className="text-white" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Investimento</span>
+        <span className="text-sm font-black text-white font-mono leading-none mt-0.5">
+            {formatBRL(data.value)}
+        </span>
       </div>
 
-      <Handle type="target" position={Position.Left} id="l" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, left: -6 }} />
-      <Handle type="target" position={Position.Top} id="t" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, top: -6 }} />
-      <Handle type="source" position={Position.Right} id="r" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, right: -6 }} />
-      <Handle type="source" position={Position.Bottom} id="b" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, bottom: -6 }} />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-green-500 border-2 border-zinc-950 translate-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-green-500 border-2 border-zinc-950 translate-y-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-green-500 border-2 border-zinc-950 -translate-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-green-500 border-2 border-zinc-950 -translate-y-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }

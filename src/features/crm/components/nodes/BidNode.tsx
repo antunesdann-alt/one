@@ -1,29 +1,31 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Gavel } from 'lucide-react';
 
-export function BidNode({ data, selected }: NodeProps) {
-  const borderClass = selected ? 'border-green-500 border-2' : 'border-zinc-800 border';
-  const handleOpacity = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
-  // Handles menores para o Bid
-  const handleStyle = { width: 8, height: 8, background: '#71717a', border: '1px solid #000', zIndex: 50 };
+const formatBRL = (value: any) => {
+    const num = parseFloat(value || 0);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+};
 
-  const formattedValue = parseFloat(data.value?.toString() || '0')
-    .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function BidNode({ data, selected }: NodeProps) {
+  // REMOÇÃO DO GLOW
+  const containerStyle = selected 
+    ? "ring-1 ring-white border-emerald-500" 
+    : "border-emerald-700 hover:border-emerald-500";
 
   return (
-    <div className={`bg-zinc-950 rounded-full px-4 py-2 flex items-center gap-3 transition-colors relative group ${borderClass}`}>
-      <div className="bg-zinc-900 p-1.5 rounded-full border border-zinc-800">
-         <Gavel size={14} className="text-green-500" />
+    <div className={`relative min-w-[150px] bg-zinc-950 border-2 rounded-full px-3 py-2 flex items-center gap-3 transition-all group ${containerStyle}`}>
+      <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 text-emerald-500">
+        <Gavel size={16} />
       </div>
-      <div className="flex flex-col leading-none">
-         <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mb-0.5">LANCE MAX</span>
-         <span className="text-white font-mono font-bold text-sm">R$ {formattedValue}</span>
+      <div className="flex flex-col">
+        <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Lance Max</span>
+        <span className="text-xs font-bold text-white font-mono leading-none mt-0.5">
+            {formatBRL(data.value)}
+        </span>
       </div>
 
-      <Handle type="target" position={Position.Left} id="l" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, left: -4 }} />
-      <Handle type="target" position={Position.Top} id="t" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, top: -4 }} />
-      <Handle type="source" position={Position.Right} id="r" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, right: -4 }} />
-      <Handle type="source" position={Position.Bottom} id="b" className={`transition-opacity duration-300 ${handleOpacity}`} style={{ ...handleStyle, bottom: -4 }} />
+      <Handle type="source" position={Position.Right} className="w-2.5 h-2.5 bg-emerald-500 border-2 border-zinc-950 translate-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="target" position={Position.Left} className="w-2.5 h-2.5 bg-emerald-500 border-2 border-zinc-950 -translate-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }

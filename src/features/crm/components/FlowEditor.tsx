@@ -27,7 +27,7 @@ import { SegmentNode } from "./nodes/SegmentNode";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import PropertiesPanel from "./PropertiesPanel";
 
-const FLOW_KEY = 'social-one-flow-v29';
+const FLOW_KEY = 'social-one-flow-v31';
 
 const nodeTypes = {
   campaignNode: CampaignNode,
@@ -60,7 +60,6 @@ function FlowEditorInternal() {
   const [clipboard, setClipboard] = useState<Node[]>([]);
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   
-  // Flag para controle de histórico
   const isHistoryAction = useRef(false);
 
   useOnSelectionChange({
@@ -90,12 +89,10 @@ function FlowEditorInternal() {
     }
   }, [nodes, edges, autosaveEnabled]);
 
-  // --- UNDO/REDO BLINDADO 2.0 ---
   const performUndo = useCallback(() => {
       const result = undo(); 
       if (result) {
           isHistoryAction.current = true; 
-          // Verifica se nodes é array válido antes de setar
           setNodes(Array.isArray(result.nodes) ? [...result.nodes] : []);
           setEdges(Array.isArray(result.edges) ? [...result.edges] : []);
           setTimeout(() => { isHistoryAction.current = false; }, 100);
@@ -114,9 +111,7 @@ function FlowEditorInternal() {
 
   const onNodesChangeCustom = useCallback((changes: NodeChange[]) => { 
       const isSelectionChange = changes.every(c => c.type === 'select');
-      // Snapshot apenas se não for seleção e não estiver em ação de histórico
       if (!isHistoryAction.current && !isSelectionChange && changes.some(c => c.type !== 'select')) {
-          // Backup logic
       }
       setNodes((nds) => applyNodeChanges(changes, nds)); 
   }, [setNodes]);
@@ -149,7 +144,11 @@ function FlowEditorInternal() {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const label = event.dataTransfer.getData('application/reactflow/label');
       
-      const baseData = { label, value: '0', isAd: false, frequency: 3 }; 
+      const dataString = event.dataTransfer.getData('application/reactflow/data');
+      let extraData = {}; 
+      try { if (dataString) extraData = JSON.parse(dataString); } catch(e) {}
+      
+      const baseData = { label, value: '0', isAd: false, frequency: 3, ...extraData }; 
       if (label.includes('Ad') || label.includes('AD')) baseData.isAd = true;
 
       setNodes((nds) => nds.concat({ id: `${type}-${Date.now()}`, type, position, data: baseData }));
@@ -213,7 +212,7 @@ function FlowEditorInternal() {
 
   const handleReset = () => { if (confirm("Resetar?")) { localStorage.removeItem(FLOW_KEY); window.location.reload(); } };
 
-  // BFS
+  // BFS Logic
   useEffect(() => {
     if (!nodes || !Array.isArray(nodes)) return;
     const campaignNode = nodes.find(n => n.type === 'campaignNode');
@@ -287,7 +286,14 @@ function FlowEditorInternal() {
           <Button variant="ghost" size="icon" onClick={() => fitView({ duration: 800, padding: 0.2 })} className="h-8 w-8 text-zinc-400 hover:text-green-400 hover:bg-zinc-800"><ScanSearch size={16} /></Button>
       </div>
       
-      <PropertiesPanel selectedNode={selectedNode} onChange={onNodeDataChange} onClose={() => setSelectedNode(null)}/>
+      {/* CORREÇÃO AQUI: Renderização Condicional */}
+      {selectedNode && (
+        <PropertiesPanel 
+            selectedNode={selectedNode} 
+            onChange={onNodeDataChange} 
+            onClose={() => setSelectedNode(null)}
+        />
+      )}
     </div>
   );
 }
