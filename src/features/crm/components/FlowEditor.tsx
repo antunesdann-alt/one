@@ -4,7 +4,8 @@ import { useCallback, useRef, useEffect, useState } from "react";
 import { 
   ReactFlow, Background, useNodesState, useEdgesState, addEdge, 
   Connection, BackgroundVariant, useReactFlow, ReactFlowProvider, 
-  NodeChange, applyNodeChanges, useOnSelectionChange, Node 
+  NodeChange, applyNodeChanges, useOnSelectionChange, Node,
+  ConnectionMode // <-- Adicionado para destravar conexões Source/Target
 } from "@xyflow/react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ const nodeTypes = {
   investmentNode: InvestmentNode,
   mediaVideoNode: VideoNode,
   mediaImageNode: VideoNode,
-  mediaCarouselNode: VideoNode,
+  mediaCarouselNode: VideoNode, 
   channelNode: ChannelNode,
   quizNode: QuizNode,
   segmentNode: SegmentNode
@@ -45,7 +46,7 @@ const defaultNodes = [{
   id: 'master-1', 
   type: 'campaignNode', 
   position: { x: 100, y: 100 }, 
-  data: { label: 'Nova Campanha', budget: '0', balance: 0, isAutomatedBudget: false, active: false } 
+  data: { label: 'Nova Campanha', budget: 0, balance: 0, usedBudget: 124.50, allocatedBudget: 0, orphans: 0, active: false } 
 }];
 
 function FlowEditorInternal() {
@@ -57,7 +58,6 @@ function FlowEditorInternal() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectedNodesList, setSelectedNodesList] = useState<Node[]>([]);
-  const [clipboard, setClipboard] = useState<Node[]>([]);
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   
   const isHistoryAction = useRef(false);
@@ -120,14 +120,26 @@ function FlowEditorInternal() {
       if (!isHistoryAction.current) takeSnapshot(getNodes(), getEdges());
   }, [takeSnapshot, getNodes, getEdges]);
 
+  const isValidConnection = useCallback((connection: Connection) => {
+      if (connection.source === connection.target) return false;
+      const currentNodes = getNodes();
+      const sourceNode = currentNodes.find(n => n.id === connection.source);
+      const targetNode = currentNodes.find(n => n.id === connection.target);
+      
+      if (!sourceNode || !targetNode) return false;
+      // Única trava: Canal não se liga em Canal. O resto flui livremente.
+      if (sourceNode.type === 'channelNode' && targetNode.type === 'channelNode') return false;
+      
+      return true;
+  }, [getNodes]);
+
   const onConnect = useCallback((params: Connection) => { 
-      if (params.source === params.target) return;
+      if (!isValidConnection(params)) return;
       const exists = edges.some(e => e.source === params.source && e.target === params.target);
       if (exists) return;
-
       takeSnapshot(getNodes(), getEdges()); 
       setEdges((eds) => addEdge(params, eds)); 
-  }, [setEdges, takeSnapshot, getNodes, getEdges, edges]);
+  }, [setEdges, takeSnapshot, getNodes, getEdges, edges, isValidConnection]);
 
   const onNodeDataChange = useCallback((id: string, data: any) => { 
       setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, ...data } } : n)); 
@@ -139,18 +151,16 @@ function FlowEditorInternal() {
       const type = event.dataTransfer.getData('application/reactflow/type');
       if (!type) return;
       if (type === 'campaignNode' && nodes.some(n => n.type === 'campaignNode')) { alert("Apenas uma Campanha Mestra permitida."); return; }
-      
       takeSnapshot(getNodes(), getEdges());
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const label = event.dataTransfer.getData('application/reactflow/label');
-      
       const dataString = event.dataTransfer.getData('application/reactflow/data');
       let extraData = {}; 
       try { if (dataString) extraData = JSON.parse(dataString); } catch(e) {}
       
-      const baseData = { label, value: '0', isAd: false, frequency: 3, ...extraData }; 
+      const baseData = { label, value: 0, isAd: false, frequency: 3, ...extraData }; 
       if (label.includes('Ad') || label.includes('AD')) baseData.isAd = true;
-
+      
       setNodes((nds) => nds.concat({ id: `${type}-${Date.now()}`, type, position, data: baseData }));
   }, [screenToFlowPosition, setNodes, nodes, takeSnapshot, getNodes, getEdges]);
 
@@ -210,14 +220,14 @@ function FlowEditorInternal() {
     }));
   };
 
-  const handleReset = () => { if (confirm("Resetar?")) { localStorage.removeItem(FLOW_KEY); window.location.reload(); } };
+  const handleReset = () => { if (confirm("Resetar o fluxo?")) { localStorage.removeItem(FLOW_KEY); window.location.reload(); } };
 
-  // BFS Logic
   useEffect(() => {
     if (!nodes || !Array.isArray(nodes)) return;
     const campaignNode = nodes.find(n => n.type === 'campaignNode');
     const investmentNodes = nodes.filter(n => n.type === 'investmentNode');
     if (!campaignNode) return;
+    
     const connectedNodeIds = new Set<string>([campaignNode.id]);
     const queue = [campaignNode.id];
     while (queue.length > 0) {
@@ -228,17 +238,15 @@ function FlowEditorInternal() {
             if (!connectedNodeIds.has(neighborId)) { connectedNodeIds.add(neighborId); queue.push(neighborId); }
         });
     }
+    
     const validInvestments = investmentNodes.filter(node => connectedNodeIds.has(node.id));
     const orphansCount = investmentNodes.length - validInvestments.length;
-    const totalInvestment = validInvestments.reduce((acc, node) => acc + (parseFloat(node.data.value as string) || 0), 0);
-    const currentBudget = parseFloat(campaignNode.data.budget as string) || 0;
-    const isCurrentlyAutomated = campaignNode.data.isAutomatedBudget;
-    if (validInvestments.length > 0 && (currentBudget !== totalInvestment || !isCurrentlyAutomated)) {
-        setNodes((nds) => nds.map((n) => n.id === campaignNode.id ? { ...n, data: { ...n.data, budget: totalInvestment.toString(), isAutomatedBudget: true, orphans: orphansCount } } : n));
-    } else if (validInvestments.length === 0 && isCurrentlyAutomated) {
-        setNodes((nds) => nds.map((n) => n.id === campaignNode.id ? { ...n, data: { ...n.data, budget: '0', isAutomatedBudget: false, orphans: orphansCount } } : n));
-    } else if (campaignNode.data.orphans !== orphansCount) {
-        setNodes((nds) => nds.map((n) => n.id === campaignNode.id ? { ...n, data: { ...n.data, orphans: orphansCount } } : n));
+    const totalAllocated = validInvestments.reduce((acc, node) => acc + (Number(node.data.value) || 0), 0);
+    
+    if (campaignNode.data.allocatedBudget !== totalAllocated || campaignNode.data.orphans !== orphansCount) {
+        setNodes((nds) => nds.map((n) => n.id === campaignNode.id 
+          ? { ...n, data: { ...n.data, allocatedBudget: totalAllocated, orphans: orphansCount } } 
+          : n));
     }
   }, [nodes, edges, setNodes]);
 
@@ -248,8 +256,10 @@ function FlowEditorInternal() {
         nodes={nodes} edges={edges} nodeTypes={nodeTypes} 
         onNodesChange={onNodesChangeCustom} onEdgesChange={onEdgesChange} 
         onConnect={onConnect} onNodeDragStart={onNodeDragStart} onDrop={onDrop} 
+        isValidConnection={isValidConnection}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }} 
         fitView colorMode="dark"
+        connectionMode={ConnectionMode.Loose} // <-- MÁGICA: Permite conectar qualquer pino em qualquer pino livremente!
         selectionKeyCode={['Shift']} multiSelectionKeyCode={['Shift']} 
         selectionOnDrag={true} panOnDrag={true} deleteKeyCode={['Backspace', 'Delete']} 
       >
@@ -268,11 +278,15 @@ function FlowEditorInternal() {
             <>
                 <div className="flex gap-0.5">
                     <Button variant="ghost" size="icon" onClick={() => alignNodes('left')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Esquerda"><AlignStartHorizontal size={16} /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-h')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro H"><AlignCenterHorizontal size={16} /></Button>
+                    
+                    {/* ÍCONES INVERTIDOS CONFORME ANEXO 01 */}
+                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-h')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro H"><AlignCenterVertical size={16} /></Button>
                     <Button variant="ghost" size="icon" onClick={() => alignNodes('right')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Direita"><AlignEndHorizontal size={16} /></Button>
                     <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
                     <Button variant="ghost" size="icon" onClick={() => alignNodes('top')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Topo"><AlignStartVertical size={16} /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-v')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro V"><AlignCenterVertical size={16} /></Button>
+                    
+                    {/* ÍCONES INVERTIDOS CONFORME ANEXO 01 */}
+                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-v')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro V"><AlignCenterHorizontal size={16} /></Button>
                     <Button variant="ghost" size="icon" onClick={() => alignNodes('bottom')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Base"><AlignEndVertical size={16} /></Button>
                 </div>
                 <div className="w-px h-6 bg-zinc-700 mx-1"></div>
@@ -286,7 +300,6 @@ function FlowEditorInternal() {
           <Button variant="ghost" size="icon" onClick={() => fitView({ duration: 800, padding: 0.2 })} className="h-8 w-8 text-zinc-400 hover:text-green-400 hover:bg-zinc-800"><ScanSearch size={16} /></Button>
       </div>
       
-      {/* CORREÇÃO AQUI: Renderização Condicional */}
       {selectedNode && (
         <PropertiesPanel 
             selectedNode={selectedNode} 

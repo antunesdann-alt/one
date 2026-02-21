@@ -24,7 +24,7 @@ export function VideoNode({ data, selected, type }: NodeProps) {
 
   // Estilo do Container
   const containerStyle = selected 
-    ? `ring-1 ring-white shadow-[0_0_15px_rgba(255,255,255,0.3)] ${borderColor}` 
+    ? `ring-1 ring-white ${borderColor}` 
     : `${borderColor} hover:border-zinc-500`;
 
   // Controle de visibilidade dos Handles
