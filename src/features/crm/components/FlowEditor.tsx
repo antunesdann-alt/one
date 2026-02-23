@@ -4,7 +4,7 @@ import { useCallback, useRef, useEffect, useState } from "react";
 import { 
   ReactFlow, Background, useNodesState, useEdgesState, addEdge, 
   Connection, BackgroundVariant, useReactFlow, ReactFlowProvider, 
-  NodeChange, applyNodeChanges, useOnSelectionChange, Node 
+  NodeChange, applyNodeChanges, Node 
 } from "@xyflow/react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -56,17 +56,18 @@ function FlowEditorInternal() {
   
   const [nodes, setNodes] = useNodesState(defaultNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [selectedNodesList, setSelectedNodesList] = useState<Node[]>([]);
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   
-  // MOTOR DE HISTÓRICO BLINDADO (Substitui o hook externo)
+  // MOTOR DE HISTÓRICO BLINDADO
   const historyState = useRef({ past: [] as any[], future: [] as any[] });
   const [historyLen, setHistoryLen] = useState({ past: 0, future: 0 });
   const isHistoryAction = useRef(false);
   
-  // ÁREA DE TRANSFERÊNCIA (Para CTRL+C / CTRL+V)
   const clipboard = useRef({ nodes: [] as Node[], edges: [] as any[] });
+
+  // SELEÇÃO DERIVADA (Resolve o bug do SHIFT+Arrasto)
+  const selectedNodesList = nodes.filter(n => n.selected);
+  const selectedNode = selectedNodesList.length === 1 ? selectedNodesList[0] : null;
 
   const takeSnapshot = useCallback(() => {
       historyState.current.past.push({ nodes: getNodes(), edges: getEdges() });
@@ -98,13 +99,6 @@ function FlowEditorInternal() {
       setEdges([...next.edges]);
       setTimeout(() => { isHistoryAction.current = false; }, 150);
   }, [getNodes, getEdges, setNodes, setEdges]);
-
-  useOnSelectionChange({
-    onChange: ({ nodes }) => {
-      setSelectedNodesList([...nodes]);
-      setSelectedNode(nodes.length === 1 ? nodes[0] : null);
-    },
-  });
 
   useEffect(() => {
     const savedFlow = localStorage.getItem(FLOW_KEY);
@@ -176,7 +170,6 @@ function FlowEditorInternal() {
 
   const onNodeDataChange = useCallback((id: string, data: any) => { 
       setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, ...data } } : n)); 
-      setSelectedNode((prev: any) => prev?.id === id ? { ...prev, data: { ...prev.data, ...data } } : prev); 
   }, [setNodes]);
 
   const onDrop = useCallback((event: React.DragEvent) => {
@@ -198,7 +191,6 @@ function FlowEditorInternal() {
       setNodes((nds) => nds.concat({ id: `${type}-${Date.now()}`, type, position, data: baseData }));
   }, [screenToFlowPosition, setNodes, nodes, takeSnapshot]);
 
-  // SISTEMA DE DUPLICAÇÃO E ATALHOS GERAIS
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -207,12 +199,9 @@ function FlowEditorInternal() {
       const key = e.key.toLowerCase();
       const ctrl = e.ctrlKey || e.metaKey;
 
-      // Desfazer (Ctrl+Z)
       if (ctrl && key === 'z' && !e.shiftKey) { e.preventDefault(); performUndo(); return; }
-      // Refazer (Ctrl+Y ou Ctrl+Shift+Z)
       if (ctrl && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); performRedo(); return; }
 
-      // COPIAR (Ctrl+C)
       if (ctrl && key === 'c') {
           const sNodes = getNodes().filter(n => n.selected);
           if (!sNodes.length) return;
@@ -221,10 +210,9 @@ function FlowEditorInternal() {
           clipboard.current = { nodes: sNodes, edges: sEdges };
       }
 
-      // COLAR (Ctrl+V) ou DUPLICAR (Ctrl+D)
       if (ctrl && (key === 'v' || key === 'd')) {
           if (key === 'd') {
-              e.preventDefault(); // Impede o navegador de salvar nos favoritos
+              e.preventDefault(); 
               const sNodes = getNodes().filter(n => n.selected);
               if (!sNodes.length) return;
               const sNodeIds = new Set(sNodes.map(n => n.id));
@@ -261,15 +249,14 @@ function FlowEditorInternal() {
   const alignNodes = (mode: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => {
     if (selectedNodesList.length < 2) return;
     takeSnapshot();
-    const selected = getNodes().filter(n => n.selected);
     let target = 0;
     switch (mode) {
-        case 'left': target = Math.min(...selected.map(n => n.position.x)); break;
-        case 'center-h': target = (Math.min(...selected.map(n => n.position.x)) + Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0)))) / 2; break;
-        case 'right': target = Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0))); break;
-        case 'top': target = Math.min(...selected.map(n => n.position.y)); break;
-        case 'center-v': target = (Math.min(...selected.map(n => n.position.y)) + Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0)))) / 2; break;
-        case 'bottom': target = Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0))); break;
+        case 'left': target = Math.min(...selectedNodesList.map(n => n.position.x)); break;
+        case 'center-h': target = (Math.min(...selectedNodesList.map(n => n.position.x)) + Math.max(...selectedNodesList.map(n => n.position.x + (n.measured?.width || 0)))) / 2; break;
+        case 'right': target = Math.max(...selectedNodesList.map(n => n.position.x + (n.measured?.width || 0))); break;
+        case 'top': target = Math.min(...selectedNodesList.map(n => n.position.y)); break;
+        case 'center-v': target = (Math.min(...selectedNodesList.map(n => n.position.y)) + Math.max(...selectedNodesList.map(n => n.position.y + (n.measured?.height || 0)))) / 2; break;
+        case 'bottom': target = Math.max(...selectedNodesList.map(n => n.position.y + (n.measured?.height || 0))); break;
     }
     setNodes(nds => nds.map(n => {
         if (!n.selected) return n;
@@ -314,7 +301,6 @@ function FlowEditorInternal() {
     }
   }, [nodes, edges, setNodes]);
 
-  // CSS DINÂMICO DOS BULLETS CONECTADOS
   const getConnectedStyles = () => {
       return edges.map(e => {
           const sSelector = e.sourceHandle 
@@ -331,7 +317,6 @@ function FlowEditorInternal() {
   return (
     <div className="h-full w-full bg-zinc-950 relative" ref={reactFlowWrapper}>
       
-      {/* MAGIA GLOBAL: O React insere uma tag de estilo imortal para todo bullet que possuir um cabo ligado */}
       <style>{getConnectedStyles()}</style>
 
       <ReactFlow 

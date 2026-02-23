@@ -14,11 +14,11 @@ export default function MediaOrganicPanel({ data, nodeId, onChange, onClose, typ
   const textColor = isVideo ? "text-blue-400" : "text-pink-400";
   const focusRing = isVideo ? "focus:ring-blue-500" : "focus:ring-pink-500";
   const iconColor = isVideo ? "text-blue-500" : "text-pink-500";
+  const switchClass = isVideo ? "data-[state=checked]:bg-blue-600" : "data-[state=checked]:bg-pink-600";
 
   return (
     <div className="flex flex-col h-full w-full bg-zinc-950 text-zinc-100 selection:bg-zinc-700 selection:text-white">
       
-      {/* HEADER SEM A TAG "AD" */}
       <div className={`flex items-center justify-between px-4 py-3 ${headerColor} shrink-0`}>
         <div className="flex items-center gap-2">
           <Icon size={18} className="text-white" />
@@ -45,15 +45,19 @@ export default function MediaOrganicPanel({ data, nodeId, onChange, onClose, typ
         </div>
 
         <div className="space-y-2">
-           <Label className={`text-[10px] font-bold uppercase tracking-wider ${textColor}`}>ARQUIVO & CAPA</Label>
-           <div className="grid grid-cols-2 gap-2">
+           <Label className={`text-[10px] font-bold uppercase tracking-wider ${textColor}`}>
+               ARQUIVO {isVideo ? '& CAPA' : ''}
+           </Label>
+           <div className={`grid ${isVideo ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
                <div className={`h-24 bg-zinc-900/50 rounded-lg border border-dashed border-zinc-700 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:bg-zinc-800 hover:${textColor} transition-colors`}>
                    <Upload size={18} className="mb-1.5" />
                    <span className="text-[10px] font-medium uppercase">{isVideo ? 'Upload MP4' : 'Upload Imagem'}</span>
                </div>
-               <div className={`h-24 bg-zinc-900/50 rounded-lg border border-dashed border-zinc-700 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:bg-zinc-800 hover:${textColor} transition-colors`}>
-                   <span className="text-[10px] font-medium uppercase text-center px-2">Trocar Capa</span>
-               </div>
+               {isVideo && (
+                   <div className={`h-24 bg-zinc-900/50 rounded-lg border border-dashed border-zinc-700 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:bg-zinc-800 hover:${textColor} transition-colors`}>
+                       <span className="text-[10px] font-medium uppercase text-center px-2">Trocar Capa</span>
+                   </div>
+               )}
            </div>
         </div>
 
@@ -67,7 +71,6 @@ export default function MediaOrganicPanel({ data, nodeId, onChange, onClose, typ
           />
         </div>
 
-        {/* ÁREA DE LINK: Post Orgânico TRAVADO em Smart Link */}
         <div className="bg-zinc-900/40 border border-zinc-800 rounded-lg p-3 space-y-4">
             <div className="space-y-2">
                 <Label className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${textColor}`}>
@@ -79,17 +82,7 @@ export default function MediaOrganicPanel({ data, nodeId, onChange, onClose, typ
                     className={`bg-zinc-900 border-zinc-800 text-white h-10 text-xs placeholder:text-zinc-600 ${focusRing}`} 
                     placeholder="Cole o Link One Live (Produto/Conteúdo)" 
                 />
-                <p className="text-[9px] text-zinc-500 italic">*Links externos bloqueados em posts orgânicos.</p>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-zinc-800/50">
-                <Label className={`text-[10px] font-bold uppercase tracking-wider ${textColor}`}>TEXTO DO CTA (BOTÃO)</Label>
-                <Input 
-                    value={data.ctaText || ''} 
-                    onChange={(e) => onChange(nodeId, { ctaText: e.target.value })} 
-                    className={`bg-zinc-900 border-zinc-800 text-white h-10 text-xs placeholder:text-zinc-600 ${focusRing}`} 
-                    placeholder="Ex: Saiba Mais, Comprar Agora..." 
-                />
+                <p className="text-[9px] text-zinc-500 italic">*Links externos e CTAs customizados são bloqueados em posts orgânicos.</p>
             </div>
         </div>
 
@@ -119,7 +112,7 @@ export default function MediaOrganicPanel({ data, nodeId, onChange, onClose, typ
                    <BadgeCheck size={14} className={iconColor} />
                    Parceria Paga
                </span>
-               <Switch checked={data.isPaidPartnership || false} onCheckedChange={(checked) => onChange(nodeId, { isPaidPartnership: checked })} />
+               <Switch checked={data.isPaidPartnership || false} onCheckedChange={(checked) => onChange(nodeId, { isPaidPartnership: checked })} className={switchClass} />
            </div>
         </div>
 

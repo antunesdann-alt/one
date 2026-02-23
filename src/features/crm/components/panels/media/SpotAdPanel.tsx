@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 
 export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
   return (
-    <div className="flex flex-col h-full w-full bg-zinc-950 text-zinc-100 selection:bg-blue-600 selection:text-white">
+    <div className="flex flex-col h-full w-full bg-zinc-950 text-zinc-100 selection:bg-purple-600 selection:text-white">
       <div className="flex items-center justify-between px-4 py-3 bg-purple-600 shrink-0">
         <div className="flex items-center gap-2">
           <Headphones size={18} className="text-white" />
@@ -20,7 +20,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
       <div className="p-4 flex-1 overflow-y-auto space-y-6">
         <div className="space-y-3">
           <Label className="text-xs font-bold text-zinc-400 uppercase">Nome do Anúncio</Label>
-          <Input value={data.name || ''} onChange={(e) => onChange(nodeId, { name: e.target.value })} onFocus={(e) => e.target.select()} className="bg-zinc-900 border-zinc-800 text-white h-10" />
+          <Input value={data.name || ''} onChange={(e) => onChange(nodeId, { name: e.target.value })} onFocus={(e) => e.target.select()} className="bg-zinc-900 border-zinc-800 text-white h-10 focus:ring-purple-500" />
         </div>
 
         <div className="space-y-4 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800">
@@ -50,7 +50,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
                  value={data.cta || ''} 
                  onChange={(e) => onChange(nodeId, { cta: e.target.value })} 
                  onFocus={(e) => e.target.select()} 
-                 className="bg-zinc-900 border-zinc-800 text-white h-10 text-xs" 
+                 className="bg-zinc-900 border-zinc-800 text-white h-10 text-xs focus:ring-purple-500" 
                  placeholder="Ex: Ouça Agora, Assinar Premium..." 
                />
              </div>
@@ -61,7 +61,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
                  value={data.maxFreq || ''} 
                  onChange={(e) => onChange(nodeId, { maxFreq: e.target.value })} 
                  onFocus={(e) => e.target.select()} 
-                 className="bg-zinc-900 border-zinc-800 text-white h-10 text-xs" 
+                 className="bg-zinc-900 border-zinc-800 text-white h-10 text-xs focus:ring-purple-500" 
                />
              </div>
           </div>
@@ -74,7 +74,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
                  value={data.url || ''} 
                  onChange={(e) => onChange(nodeId, { url: e.target.value })} 
                  onFocus={(e) => e.target.select()} 
-                 className="pl-9 bg-zinc-900 border-zinc-800 text-white h-10 text-sm" 
+                 className="pl-9 bg-zinc-900 border-zinc-800 text-white h-10 text-sm focus:ring-purple-500" 
                  placeholder="URL Externa ou Interna" 
                />
              </div>
@@ -86,7 +86,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
                 value={data.tags || ''} 
                 onChange={(e) => onChange(nodeId, { tags: e.target.value })} 
                 onFocus={(e) => e.target.select()} 
-                className="bg-zinc-900 border-zinc-800 text-white h-10 text-sm" 
+                className="bg-zinc-900 border-zinc-800 text-white h-10 text-sm focus:ring-purple-500" 
                 placeholder="Ex: #lancamento #podcast" 
              />
           </div>
@@ -96,7 +96,7 @@ export default function SpotAdPanel({ data, nodeId, onChange, onClose }: any) {
               <BadgeCheck size={18} className="text-purple-500" />
               <div className="flex flex-col"><span className="text-sm font-medium text-white">Parceria Paga</span></div>
             </div>
-            <Switch checked={data.isPaidPartnership || false} onCheckedChange={(checked) => onChange(nodeId, { isPaidPartnership: checked })} />
+            <Switch checked={data.isPaidPartnership || false} onCheckedChange={(checked) => onChange(nodeId, { isPaidPartnership: checked })} className="data-[state=checked]:bg-purple-600" />
           </div>
         </div>
       </div>
