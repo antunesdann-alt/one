@@ -6,7 +6,9 @@ import {
   Smartphone, Clapperboard, CircleDashed, MonitorPlay, Music, 
   Users, DollarSign, MessageCircle, 
   Megaphone, Wand2, FileImage, 
-  Filter, MapPin, ShoppingBag, HelpCircle
+  Filter, MapPin, ShoppingBag, HelpCircle, 
+  Headphones, CalendarDays, Clock, 
+  CopyPlus, MousePointerClick // Novos ícones
 } from "lucide-react";
 import { OneLiveLogo } from "@/components/ui/OneLiveLogo";
 
@@ -19,11 +21,31 @@ const onDragStart = (event: React.DragEvent, nodeType: string, label: string, da
 
 const DraggableItem = ({ type, label, icon: Icon, meta, variant = 'default' }: any) => (
   <div 
-    className={`flex items-center gap-3 p-2 rounded-md cursor-grab transition-colors group/item ${variant === 'highlight' ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-500' : 'hover:bg-blue-600 text-zinc-300 hover:text-white'}`}
+    className={`flex items-center gap-3 p-2 rounded-md cursor-grab transition-colors group/item ${
+      variant === 'highlight' 
+        ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-500' 
+        : variant === 'purple'
+          ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400'
+          : variant === 'cyan'
+            ? 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400'
+          : variant === 'teal'
+            ? 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-400'
+            : 'hover:bg-blue-600 text-zinc-300 hover:text-white'
+    }`}
     onDragStart={(event) => onDragStart(event, type, label, meta)}
     draggable
   >
-    <Icon size={16} className={`${variant === 'highlight' ? 'text-amber-500' : 'text-zinc-500 group-hover/item:text-white'} transition-colors`} />
+    <Icon size={16} className={`${
+      variant === 'highlight' 
+        ? 'text-amber-500' 
+        : variant === 'purple'
+          ? 'text-purple-400'
+          : variant === 'cyan'
+            ? 'text-cyan-400'
+          : variant === 'teal'
+            ? 'text-teal-400'
+            : 'text-zinc-500 group-hover/item:text-white'
+    } transition-colors`} />
     <span className="text-xs font-medium whitespace-nowrap">{label}</span>
   </div>
 );
@@ -44,19 +66,11 @@ const ToolGroup = ({ icon: GroupIcon, label, children }: any) => (
   </div>
 );
 
-interface SidebarProps {
-    onSwitchToMobile: () => void;
-}
-
-export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
+export default function Sidebar({ onSwitchToMobile }: any) {
   return (
     <aside className="w-20 bg-zinc-950 border-r border-zinc-900 flex flex-col items-center py-4 z-40 h-full overflow-visible">
       
-      <div 
-        className="mb-4 cursor-pointer transition-transform hover:scale-105 active:scale-95 group"
-        onClick={onSwitchToMobile} 
-        title="Ir para o App One Live"
-      >
+      <div className="mb-4 cursor-pointer transition-transform hover:scale-105 active:scale-95 group" onClick={onSwitchToMobile}>
         <OneLiveLogo size={42} showText={false} className="shadow-lg shadow-purple-500/20" />
       </div>
       
@@ -64,13 +78,8 @@ export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
 
       <div className="flex-1 w-full flex flex-col gap-1">
         
-        {/* MESTRA */}
         <div className="w-full px-2 mb-2" title="Campanha Mestra (Arraste)">
-             <div 
-                className="w-full aspect-square bg-amber-500/10 border border-amber-500/20 rounded-xl flex flex-col items-center justify-center cursor-grab hover:bg-amber-500/20 transition-all group"
-                onDragStart={(event) => onDragStart(event, 'campaignNode', 'Campanha Mestra')}
-                draggable
-             >
+             <div className="w-full aspect-square bg-amber-500/10 border border-amber-500/20 rounded-xl flex flex-col items-center justify-center cursor-grab hover:bg-amber-500/20 transition-all group" onDragStart={(event) => onDragStart(event, 'campaignNode', 'Campanha Mestra')} draggable>
                 <Target size={20} className="text-amber-500 mb-1 group-hover:scale-110 transition-transform" />
                 <span className="text-[8px] font-bold text-amber-500 uppercase text-center leading-none">Mestra</span>
              </div>
@@ -78,13 +87,11 @@ export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
 
         <div className="w-8 h-px bg-zinc-800 mx-auto my-1"></div>
 
-        {/* 1. Financeiro */}
         <ToolGroup icon={Wallet} label="Financeiro">
             <DraggableItem type="investmentNode" label="Investimento" icon={Wallet} />
             <DraggableItem type="bidNode" label="Lance Máximo" icon={Gavel} />
         </ToolGroup>
 
-        {/* 2. Canais */}
         <ToolGroup icon={Smartphone} label="Canais">
             <DraggableItem type="channelNode" label="Feed" icon={Smartphone} meta={{ channelType: 'feed' }} />
             <DraggableItem type="channelNode" label="Reels" icon={Clapperboard} meta={{ channelType: 'reels' }} />
@@ -93,7 +100,6 @@ export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
             <DraggableItem type="channelNode" label="One Music" icon={Music} meta={{ channelType: 'music' }} />
         </ToolGroup>
 
-        {/* 3. Posts */}
         <ToolGroup icon={FileImage} label="Posts">
             <DraggableItem type="mediaVideoNode" label="Vídeo" icon={Video} meta={{ isAd: false }} />
             <DraggableItem type="mediaImageNode" label="Imagem Única" icon={ImageIcon} meta={{ isAd: false }} />
@@ -102,18 +108,21 @@ export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
             <DraggableItem type="quizNode" label="Quiz / Pesquisa" icon={ClipboardList} />
         </ToolGroup>
 
-        {/* 4. Anúncios */}
         <ToolGroup icon={Megaphone} label="Anúncios">
             <DraggableItem type="mediaVideoNode" label="Vídeo Ad" icon={Video} meta={{ isAd: true, label: "Vídeo Ad" }} />
             <DraggableItem type="mediaImageNode" label="Imagem Ad" icon={ImageIcon} meta={{ isAd: true, label: "Imagem Ad" }} />
             <DraggableItem type="mediaCarouselNode" label="Carrossel Ad" icon={Layers} meta={{ isAd: true, label: "Carrossel Ad" }} />
             <div className="h-px bg-zinc-900 my-1"></div>
+            <DraggableItem type="spotNode" label="Spot (One Music)" icon={Headphones} meta={{ isAd: true, label: "Spot de Áudio" }} variant="purple" />
+            <div className="h-px bg-zinc-900 my-1"></div>
             <DraggableItem type="quizNode" label="Quiz Ad" icon={ClipboardList} meta={{ isAd: true, label: "Quiz Ad" }} />
         </ToolGroup>
 
-        {/* 5. Targeting (ATUALIZADO COM DEMOGRÁFICO) */}
+        {/* TARGETING ATUALIZADO */}
         <ToolGroup icon={Filter} label="Targeting">
             <DraggableItem type="segmentNode" label="Demográfico" icon={Users} meta={{ segmentType: 'demo' }} />
+            <DraggableItem type="segmentNode" label="Semelhante" icon={CopyPlus} meta={{ segmentType: 'lookalike' }} />
+            <DraggableItem type="segmentNode" label="Interação" icon={MousePointerClick} meta={{ segmentType: 'interaction' }} />
             <DraggableItem type="segmentNode" label="Wallet Power" icon={Wallet} meta={{ segmentType: 'wallet' }} variant="highlight" />
             <DraggableItem type="segmentNode" label="Target Quiz" icon={HelpCircle} meta={{ segmentType: 'quiz' }} />
             <DraggableItem type="segmentNode" label="Shop Behavior" icon={ShoppingBag} meta={{ segmentType: 'shop' }} />
@@ -123,11 +132,16 @@ export default function Sidebar({ onSwitchToMobile }: SidebarProps) {
             <DraggableItem type="segmentNode" label="Dispositivo" icon={Smartphone} meta={{ segmentType: 'device' }} />
         </ToolGroup>
 
-        {/* 6. Ações */}
+        {/* NOVO GRUPO DE DATA E HORA */}
+        <ToolGroup icon={CalendarDays} label="Agenda">
+            <DraggableItem type="dateNode" label="Data de Publicação" icon={CalendarDays} variant="cyan" />
+            <DraggableItem type="timeNode" label="Horário de Publicação" icon={Clock} variant="teal" />
+        </ToolGroup>
+
         <ToolGroup icon={Wand2} label="Ações">
-            <DraggableItem type="default" label="Público Alvo" icon={Users} />
-            <DraggableItem type="default" label="Pagamento" icon={DollarSign} />
-            <DraggableItem type="default" label="Mensagem" icon={MessageCircle} />
+            <DraggableItem type="actionNode" label="Público Alvo" icon={Users} />
+            <DraggableItem type="actionNode" label="Pagamento" icon={DollarSign} />
+            <DraggableItem type="actionNode" label="Mensagem" icon={MessageCircle} />
         </ToolGroup>
 
       </div>

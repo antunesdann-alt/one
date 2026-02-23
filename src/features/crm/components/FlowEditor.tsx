@@ -4,17 +4,12 @@ import { useCallback, useRef, useEffect, useState } from "react";
 import { 
   ReactFlow, Background, useNodesState, useEdgesState, addEdge, 
   Connection, BackgroundVariant, useReactFlow, ReactFlowProvider, 
-  NodeChange, applyNodeChanges, useOnSelectionChange, Node,
-  ConnectionMode // <-- Adicionado para destravar conexões Source/Target
+  NodeChange, applyNodeChanges, useOnSelectionChange, Node 
 } from "@xyflow/react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { 
-  RotateCw, Undo, Redo, ScanSearch, AlertTriangle,
-  AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, 
-  AlignStartVertical, AlignCenterVertical, AlignEndVertical        
-} from "lucide-react";
+import { RotateCw, AlertTriangle } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 
 import { VideoNode } from "./nodes/VideoNode"; 
@@ -24,9 +19,12 @@ import { InvestmentNode } from "./nodes/InvestmentNode";
 import { ChannelNode } from "./nodes/ChannelNode";
 import { QuizNode } from "./nodes/QuizNode";
 import { SegmentNode } from "./nodes/SegmentNode";
+import { SpotNode } from "./nodes/SpotNode";
+import { DateNode } from "./nodes/DateNode";
+import { TimeNode } from "./nodes/TimeNode";
 
-import { useUndoRedo } from "../hooks/useUndoRedo";
 import PropertiesPanel from "./PropertiesPanel";
+import { FlowToolbar } from "./FlowToolbar"; 
 
 const FLOW_KEY = 'social-one-flow-v31';
 
@@ -39,7 +37,10 @@ const nodeTypes = {
   mediaCarouselNode: VideoNode, 
   channelNode: ChannelNode,
   quizNode: QuizNode,
-  segmentNode: SegmentNode
+  segmentNode: SegmentNode,
+  spotNode: SpotNode,
+  dateNode: DateNode,
+  timeNode: TimeNode
 };
 
 const defaultNodes = [{ 
@@ -52,7 +53,6 @@ const defaultNodes = [{
 function FlowEditorInternal() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow(); 
-  const { takeSnapshot, undo, redo, canUndo, canRedo } = useUndoRedo();
   
   const [nodes, setNodes] = useNodesState(defaultNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -60,11 +60,48 @@ function FlowEditorInternal() {
   const [selectedNodesList, setSelectedNodesList] = useState<Node[]>([]);
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   
+  // MOTOR DE HISTÓRICO BLINDADO (Substitui o hook externo)
+  const historyState = useRef({ past: [] as any[], future: [] as any[] });
+  const [historyLen, setHistoryLen] = useState({ past: 0, future: 0 });
   const isHistoryAction = useRef(false);
+  
+  // ÁREA DE TRANSFERÊNCIA (Para CTRL+C / CTRL+V)
+  const clipboard = useRef({ nodes: [] as Node[], edges: [] as any[] });
+
+  const takeSnapshot = useCallback(() => {
+      historyState.current.past.push({ nodes: getNodes(), edges: getEdges() });
+      if (historyState.current.past.length > 50) historyState.current.past.shift();
+      historyState.current.future = [];
+      setHistoryLen({ past: historyState.current.past.length, future: 0 });
+  }, [getNodes, getEdges]);
+
+  const performUndo = useCallback(() => {
+      if (historyState.current.past.length === 0) return;
+      const previous = historyState.current.past.pop();
+      historyState.current.future.push({ nodes: getNodes(), edges: getEdges() });
+      setHistoryLen({ past: historyState.current.past.length, future: historyState.current.future.length });
+      
+      isHistoryAction.current = true;
+      setNodes([...previous.nodes]);
+      setEdges([...previous.edges]);
+      setTimeout(() => { isHistoryAction.current = false; }, 150);
+  }, [getNodes, getEdges, setNodes, setEdges]);
+
+  const performRedo = useCallback(() => {
+      if (historyState.current.future.length === 0) return;
+      const next = historyState.current.future.pop();
+      historyState.current.past.push({ nodes: getNodes(), edges: getEdges() });
+      setHistoryLen({ past: historyState.current.past.length, future: historyState.current.future.length });
+      
+      isHistoryAction.current = true;
+      setNodes([...next.nodes]);
+      setEdges([...next.edges]);
+      setTimeout(() => { isHistoryAction.current = false; }, 150);
+  }, [getNodes, getEdges, setNodes, setEdges]);
 
   useOnSelectionChange({
     onChange: ({ nodes }) => {
-      setSelectedNodesList(nodes);
+      setSelectedNodesList([...nodes]);
       setSelectedNode(nodes.length === 1 ? nodes[0] : null);
     },
   });
@@ -89,36 +126,17 @@ function FlowEditorInternal() {
     }
   }, [nodes, edges, autosaveEnabled]);
 
-  const performUndo = useCallback(() => {
-      const result = undo(); 
-      if (result) {
-          isHistoryAction.current = true; 
-          setNodes(Array.isArray(result.nodes) ? [...result.nodes] : []);
-          setEdges(Array.isArray(result.edges) ? [...result.edges] : []);
-          setTimeout(() => { isHistoryAction.current = false; }, 100);
-      }
-  }, [undo, setNodes, setEdges]);
-
-  const performRedo = useCallback(() => {
-      const result = redo();
-      if (result) {
-          isHistoryAction.current = true;
-          setNodes(Array.isArray(result.nodes) ? [...result.nodes] : []);
-          setEdges(Array.isArray(result.edges) ? [...result.edges] : []);
-          setTimeout(() => { isHistoryAction.current = false; }, 100);
-      }
-  }, [redo, setNodes, setEdges]);
-
   const onNodesChangeCustom = useCallback((changes: NodeChange[]) => { 
-      const isSelectionChange = changes.every(c => c.type === 'select');
-      if (!isHistoryAction.current && !isSelectionChange && changes.some(c => c.type !== 'select')) {
-      }
       setNodes((nds) => applyNodeChanges(changes, nds)); 
   }, [setNodes]);
 
   const onNodeDragStart = useCallback(() => {
-      if (!isHistoryAction.current) takeSnapshot(getNodes(), getEdges());
-  }, [takeSnapshot, getNodes, getEdges]);
+      if (!isHistoryAction.current) takeSnapshot();
+  }, [takeSnapshot]);
+  
+  const onSelectionDragStop = useCallback(() => {
+      takeSnapshot();
+  }, [takeSnapshot]);
 
   const isValidConnection = useCallback((connection: Connection) => {
       if (connection.source === connection.target) return false;
@@ -127,19 +145,34 @@ function FlowEditorInternal() {
       const targetNode = currentNodes.find(n => n.id === connection.target);
       
       if (!sourceNode || !targetNode) return false;
-      // Única trava: Canal não se liga em Canal. O resto flui livremente.
+
       if (sourceNode.type === 'channelNode' && targetNode.type === 'channelNode') return false;
+
+      if (sourceNode.type === 'spotNode' && targetNode.type === 'channelNode' && targetNode.data?.channelType !== 'music') return false;
+      if (targetNode.type === 'spotNode' && sourceNode.type === 'channelNode' && sourceNode.data?.channelType !== 'music') return false;
+
+      const isStaticMedia = (type: string) => ['mediaImageNode', 'imageNode', 'mediaCarouselNode', 'carouselNode'].includes(type);
+      const isVideoChannel = (node: any) => node.type === 'channelNode' && ['reels', 'tube'].includes(node.data?.channelType as string);
+      
+      if (isStaticMedia(sourceNode.type) && isVideoChannel(targetNode)) return false;
+      if (isVideoChannel(sourceNode) && isStaticMedia(targetNode.type)) return false;
       
       return true;
   }, [getNodes]);
 
   const onConnect = useCallback((params: Connection) => { 
       if (!isValidConnection(params)) return;
-      const exists = edges.some(e => e.source === params.source && e.target === params.target);
+      const exists = edges.some(e => 
+          e.source === params.source && 
+          e.target === params.target && 
+          e.sourceHandle === params.sourceHandle && 
+          e.targetHandle === params.targetHandle
+      );
       if (exists) return;
-      takeSnapshot(getNodes(), getEdges()); 
+      
+      takeSnapshot(); 
       setEdges((eds) => addEdge(params, eds)); 
-  }, [setEdges, takeSnapshot, getNodes, getEdges, edges, isValidConnection]);
+  }, [setEdges, takeSnapshot, edges, isValidConnection]);
 
   const onNodeDataChange = useCallback((id: string, data: any) => { 
       setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, ...data } } : n)); 
@@ -151,7 +184,8 @@ function FlowEditorInternal() {
       const type = event.dataTransfer.getData('application/reactflow/type');
       if (!type) return;
       if (type === 'campaignNode' && nodes.some(n => n.type === 'campaignNode')) { alert("Apenas uma Campanha Mestra permitida."); return; }
-      takeSnapshot(getNodes(), getEdges());
+      
+      takeSnapshot();
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       const label = event.dataTransfer.getData('application/reactflow/label');
       const dataString = event.dataTransfer.getData('application/reactflow/data');
@@ -162,60 +196,90 @@ function FlowEditorInternal() {
       if (label.includes('Ad') || label.includes('AD')) baseData.isAd = true;
       
       setNodes((nds) => nds.concat({ id: `${type}-${Date.now()}`, type, position, data: baseData }));
-  }, [screenToFlowPosition, setNodes, nodes, takeSnapshot, getNodes, getEdges]);
+  }, [screenToFlowPosition, setNodes, nodes, takeSnapshot]);
 
+  // SISTEMA DE DUPLICAÇÃO E ATALHOS GERAIS
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
-      const key = event.key.toLowerCase();
-      if ((event.ctrlKey || event.metaKey) && key === 'z') {
-        event.preventDefault();
-        if (event.shiftKey) performRedo(); else performUndo();
+      
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Desfazer (Ctrl+Z)
+      if (ctrl && key === 'z' && !e.shiftKey) { e.preventDefault(); performUndo(); return; }
+      // Refazer (Ctrl+Y ou Ctrl+Shift+Z)
+      if (ctrl && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); performRedo(); return; }
+
+      // COPIAR (Ctrl+C)
+      if (ctrl && key === 'c') {
+          const sNodes = getNodes().filter(n => n.selected);
+          if (!sNodes.length) return;
+          const sNodeIds = new Set(sNodes.map(n => n.id));
+          const sEdges = getEdges().filter(edge => sNodeIds.has(edge.source) && sNodeIds.has(edge.target));
+          clipboard.current = { nodes: sNodes, edges: sEdges };
       }
-      if ((event.ctrlKey || event.metaKey) && key === 'y') {
-        event.preventDefault();
-        performRedo();
+
+      // COLAR (Ctrl+V) ou DUPLICAR (Ctrl+D)
+      if (ctrl && (key === 'v' || key === 'd')) {
+          if (key === 'd') {
+              e.preventDefault(); // Impede o navegador de salvar nos favoritos
+              const sNodes = getNodes().filter(n => n.selected);
+              if (!sNodes.length) return;
+              const sNodeIds = new Set(sNodes.map(n => n.id));
+              const sEdges = getEdges().filter(edge => sNodeIds.has(edge.source) && sNodeIds.has(edge.target));
+              clipboard.current = { nodes: sNodes, edges: sEdges };
+          }
+          
+          if (!clipboard.current.nodes.length) return;
+          takeSnapshot();
+          
+          const idMap = new Map();
+          const newNodes = clipboard.current.nodes.map(node => {
+              const newId = `${node.type}-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+              idMap.set(node.id, newId);
+              return { ...node, id: newId, position: { x: node.position.x + 50, y: node.position.y + 50 }, selected: true };
+          });
+          
+          const newEdges = clipboard.current.edges.map(edge => ({
+              ...edge,
+              id: `edge-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              source: idMap.get(edge.source),
+              target: idMap.get(edge.target),
+              selected: true
+          }));
+          
+          setNodes(nds => nds.map(n => ({...n, selected: false})).concat(newNodes));
+          setEdges(eds => eds.map(edge => ({...edge, selected: false})).concat(newEdges));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [performUndo, performRedo]);
+  }, [performUndo, performRedo, getNodes, getEdges, setNodes, setEdges, takeSnapshot]);
 
   const alignNodes = (mode: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => {
     if (selectedNodesList.length < 2) return;
-    takeSnapshot(getNodes(), getEdges());
+    takeSnapshot();
     const selected = getNodes().filter(n => n.selected);
     let target = 0;
     switch (mode) {
         case 'left': target = Math.min(...selected.map(n => n.position.x)); break;
-        case 'center-h': 
-            const minX = Math.min(...selected.map(n => n.position.x));
-            const maxX = Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0)));
-            target = (minX + maxX) / 2; break;
-        case 'right': 
-            const maxR = Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0)));
-            target = maxR; break;
+        case 'center-h': target = (Math.min(...selected.map(n => n.position.x)) + Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0)))) / 2; break;
+        case 'right': target = Math.max(...selected.map(n => n.position.x + (n.measured?.width || 0))); break;
         case 'top': target = Math.min(...selected.map(n => n.position.y)); break;
-        case 'center-v':
-            const minY = Math.min(...selected.map(n => n.position.y));
-            const maxY = Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0)));
-            target = (minY + maxY) / 2; break;
-        case 'bottom':
-            const maxB = Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0)));
-            target = maxB; break;
+        case 'center-v': target = (Math.min(...selected.map(n => n.position.y)) + Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0)))) / 2; break;
+        case 'bottom': target = Math.max(...selected.map(n => n.position.y + (n.measured?.height || 0))); break;
     }
     setNodes(nds => nds.map(n => {
         if (!n.selected) return n;
-        const w = n.measured?.width || 0;
-        const h = n.measured?.height || 0;
         const pos = { ...n.position };
         if (mode === 'left') pos.x = target;
-        if (mode === 'center-h') pos.x = target - w/2;
-        if (mode === 'right') pos.x = target - w;
+        if (mode === 'center-h') pos.x = target - (n.measured?.width || 0)/2;
+        if (mode === 'right') pos.x = target - (n.measured?.width || 0);
         if (mode === 'top') pos.y = target;
-        if (mode === 'center-v') pos.y = target - h/2;
-        if (mode === 'bottom') pos.y = target - h;
+        if (mode === 'center-v') pos.y = target - (n.measured?.height || 0)/2;
+        if (mode === 'bottom') pos.y = target - (n.measured?.height || 0);
         return { ...n, position: pos };
     }));
   };
@@ -250,16 +314,34 @@ function FlowEditorInternal() {
     }
   }, [nodes, edges, setNodes]);
 
+  // CSS DINÂMICO DOS BULLETS CONECTADOS
+  const getConnectedStyles = () => {
+      return edges.map(e => {
+          const sSelector = e.sourceHandle 
+              ? `.react-flow__node[data-id="${e.source}"] .react-flow__handle.source[data-handleid="${e.sourceHandle}"]`
+              : `.react-flow__node[data-id="${e.source}"] .react-flow__handle.source:not([data-handleid])`;
+          const tSelector = e.targetHandle 
+              ? `.react-flow__node[data-id="${e.target}"] .react-flow__handle.target[data-handleid="${e.targetHandle}"]`
+              : `.react-flow__node[data-id="${e.target}"] .react-flow__handle.target:not([data-handleid])`;
+          
+          return `${sSelector}, ${tSelector} { opacity: 1 !important; visibility: visible !important; }`;
+      }).join('\n');
+  };
+
   return (
     <div className="h-full w-full bg-zinc-950 relative" ref={reactFlowWrapper}>
+      
+      {/* MAGIA GLOBAL: O React insere uma tag de estilo imortal para todo bullet que possuir um cabo ligado */}
+      <style>{getConnectedStyles()}</style>
+
       <ReactFlow 
         nodes={nodes} edges={edges} nodeTypes={nodeTypes} 
         onNodesChange={onNodesChangeCustom} onEdgesChange={onEdgesChange} 
         onConnect={onConnect} onNodeDragStart={onNodeDragStart} onDrop={onDrop} 
+        onSelectionDragStop={onSelectionDragStop} 
         isValidConnection={isValidConnection}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }} 
         fitView colorMode="dark"
-        connectionMode={ConnectionMode.Loose} // <-- MÁGICA: Permite conectar qualquer pino em qualquer pino livremente!
         selectionKeyCode={['Shift']} multiSelectionKeyCode={['Shift']} 
         selectionOnDrag={true} panOnDrag={true} deleteKeyCode={['Backspace', 'Delete']} 
       >
@@ -273,32 +355,15 @@ function FlowEditorInternal() {
           <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-500 hover:text-red-500" onClick={handleReset}><RotateCw size={14} /></Button>
       </div>
 
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 p-2 rounded-xl shadow-2xl backdrop-blur-sm z-50">
-          {selectedNodesList.length > 1 && (
-            <>
-                <div className="flex gap-0.5">
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('left')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Esquerda"><AlignStartHorizontal size={16} /></Button>
-                    
-                    {/* ÍCONES INVERTIDOS CONFORME ANEXO 01 */}
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-h')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro H"><AlignCenterVertical size={16} /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('right')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Direita"><AlignEndHorizontal size={16} /></Button>
-                    <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('top')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Topo"><AlignStartVertical size={16} /></Button>
-                    
-                    {/* ÍCONES INVERTIDOS CONFORME ANEXO 01 */}
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('center-v')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Centro V"><AlignCenterHorizontal size={16} /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => alignNodes('bottom')} className="h-8 w-8 text-zinc-400 hover:text-white" title="Base"><AlignEndVertical size={16} /></Button>
-                </div>
-                <div className="w-px h-6 bg-zinc-700 mx-1"></div>
-            </>
-          )}
-          <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={performUndo} disabled={!canUndo} className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800" title="Desfazer (Ctrl+Z)"><Undo size={16} /></Button>
-            <Button variant="ghost" size="icon" onClick={performRedo} disabled={!canRedo} className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800" title="Refazer (Ctrl+Shift+Z)"><Redo size={16} /></Button>
-          </div>
-          <div className="w-px h-6 bg-zinc-700 mx-1"></div>
-          <Button variant="ghost" size="icon" onClick={() => fitView({ duration: 800, padding: 0.2 })} className="h-8 w-8 text-zinc-400 hover:text-green-400 hover:bg-zinc-800"><ScanSearch size={16} /></Button>
-      </div>
+      <FlowToolbar 
+          selectedNodesList={selectedNodesList}
+          alignNodes={alignNodes}
+          performUndo={performUndo}
+          canUndo={historyLen.past > 0}
+          performRedo={performRedo}
+          canRedo={historyLen.future > 0}
+          fitView={fitView}
+      />
       
       {selectedNode && (
         <PropertiesPanel 

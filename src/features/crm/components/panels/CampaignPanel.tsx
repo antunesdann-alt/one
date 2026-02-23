@@ -46,7 +46,6 @@ export default function CampaignPanel({ data, nodeId, onChange, onClose }: any) 
 
   const isOverBudget = (data.allocatedBudget || 0) > (data.balance || 0);
 
-  // Espelho exato dos dados da pílula
   const metrics = {
       impressions: { est: 10000, current: 2340 },
       cpm: { est: 15.50, current: 14.20 },
@@ -79,28 +78,31 @@ export default function CampaignPanel({ data, nodeId, onChange, onClose }: any) 
         </div>
 
         <div className="space-y-4 pt-2">
+          
+          {/* DESTAQUE PRINCIPAL NO BUDGET */}
           <div className="space-y-3">
             <div className="flex justify-between items-end">
-                <Label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Saldo em Conta (R$)</Label>
-                {data.allocatedBudget > 0 && (
+                <Label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Valor da Campanha (R$)</Label>
+                {(data.allocatedBudget || 0) > 0 && (
                    <span className={`text-[10px] font-bold uppercase ${isOverBudget ? 'text-red-500 animate-pulse' : 'text-zinc-500'}`}>
                       Alocado: R$ {formatCurrency(data.allocatedBudget)}
                    </span>
                 )}
             </div>
-            <div className={`bg-zinc-900/50 border ${isOverBudget ? 'border-red-500/50' : 'border-zinc-800'} p-3 rounded-lg transition-colors`}>
-              <span className={`text-xl font-bold ${data.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                R$ {formatCurrency(data.balance)}
-              </span>
-            </div>
+            <Input 
+              value={localBudget}
+              onChange={handleBudgetChange}
+              onFocus={(e) => e.target.select()}
+              className={`bg-amber-500/10 border text-xl font-bold h-12 ${isOverBudget ? 'border-red-500/50 text-red-500' : 'border-amber-500/30 text-amber-500'} focus:ring-amber-500`}
+            />
             {isOverBudget && (
               <div className="text-[10px] text-red-400 font-medium bg-red-950/30 p-2 rounded border border-red-900/50">
-                  ⚠️ <strong>Atenção:</strong> O valor alocado excede o saldo em conta. A campanha poderá ser iniciada, mas o faturamento será restrito.
+                  ⚠️ <strong>Atenção:</strong> O valor alocado excede o saldo em conta. O faturamento será restrito.
               </div>
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 pt-4 border-t border-zinc-800/50">
             <Label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Valor Depósito</Label>
             <div className="flex gap-2">
               <Input 
@@ -115,18 +117,17 @@ export default function CampaignPanel({ data, nodeId, onChange, onClose }: any) 
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Valor da Campanha (R$)</Label>
-            <Input 
-              value={localBudget}
-              onChange={handleBudgetChange}
-              onFocus={(e) => e.target.select()}
-              className="bg-zinc-900 border-zinc-800 text-white font-medium h-10"
-            />
+          {/* SALDO EM CONTA COMO INFORMAÇÃO SECUNDÁRIA */}
+          <div className="space-y-2">
+            <div className="bg-zinc-900/50 border border-zinc-800 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Saldo em Conta</span>
+              <span className={`text-lg font-bold ${data.balance < 0 ? 'text-red-500' : 'text-zinc-300'}`}>
+                R$ {formatCurrency(data.balance)}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* TABELA DE PERFORMANCE ESPELHADA COM A DO NODE */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={14} className="text-zinc-400" />

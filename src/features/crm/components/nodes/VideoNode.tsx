@@ -75,10 +75,13 @@ export function VideoNode({ data, selected, type }: NodeProps) {
       </div>
 
       {/* HANDLES (4 Lados - IDs Únicos para evitar erro de conexão) */}
-      <Handle type="target" position={Position.Left} id="left" className={`w-3 h-3 bg-zinc-400 border-2 border-zinc-950 -translate-x-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
-      <Handle type="target" position={Position.Top} id="top" className={`w-3 h-3 bg-zinc-400 border-2 border-zinc-950 -translate-y-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
-      <Handle type="source" position={Position.Right} id="right" className={`w-3 h-3 bg-zinc-400 border-2 border-zinc-950 translate-x-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
-      <Handle type="source" position={Position.Bottom} id="bottom" className={`w-3 h-3 bg-zinc-400 border-2 border-zinc-950 translate-y-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
+      {/* ENTRADAS (Targets): Topo e Esquerda - Cor Azul/Índigo */}
+      <Handle type="target" position={Position.Top} id="top" className={`w-3 h-3 bg-indigo-500 border-2 border-zinc-950 -translate-y-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
+      <Handle type="target" position={Position.Left} id="left" className={`w-3 h-3 bg-indigo-500 border-2 border-zinc-950 -translate-x-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
+
+      {/* SAÍDAS (Sources): Base e Direita - Cor Verde/Esmeralda */}
+      <Handle type="source" position={Position.Bottom} id="bottom" className={`w-3 h-3 bg-emerald-500 border-2 border-zinc-950 translate-y-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
+      <Handle type="source" position={Position.Right} id="right" className={`w-3 h-3 bg-emerald-500 border-2 border-zinc-950 translate-x-1.5 z-50 transition-opacity duration-200 ${handleOpacity}`} />
     </div>
   );
 }
